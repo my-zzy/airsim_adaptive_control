@@ -70,7 +70,7 @@ def pt_rotvec_to_quat(rotvec, device, dtype=torch.float32):
 #     return torch.cat((wxyz_quat_batch[:, 1:4], wxyz_quat_batch[:, 0:1]), dim=1)
 
 class SimpleFlightDynamicsTorch:
-    def __init__(self, num_samples, dt=0.005, dtype=torch.float32):
+    def __init__(self, num_samples=1, dt=0.005, dtype=torch.float32):
         """
         初始化动力学模型参数。
         Args:
