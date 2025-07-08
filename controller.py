@@ -39,6 +39,12 @@ def quaternion_to_euler(x, y, z, w):
 
     return roll, pitch, yaw
 
+def lowpass_filter(data, alpha=0.5):
+    smoothed = [data[0]]
+    for i in range(1, len(data)):
+        smoothed_val = alpha * data[i] + (1 - alpha) * smoothed[-1]
+        smoothed.append(smoothed_val)
+    return smoothed
 
 def pd(x, x_dot, xd, xd_dot, kp, kd):
     x_dot2 = - kd*(x_dot-xd_dot) - kp*(x-xd)
@@ -142,6 +148,13 @@ def pd_controller(pos, att, posd, attd, dt, t):
 
 
 def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
+    # lowpass filter
+    alp = 0.1
+    pos = [lowpass_filter(p, alp) for p in pos]
+    att = [lowpass_filter(a, alp) for a in att]
+    posd = [lowpass_filter(pd, alp) for pd in posd]
+    attd = [lowpass_filter(ad, alp) for ad in attd]
+    
     x = pos[0][-1]
     y = pos[1][-1]
     z = pos[2][-1]
@@ -195,7 +208,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     dz_hat_dot = lamz*ew
     dz_hat += dz_hat_dot*dt
     U1 = (w_dot - dz_hat +g)*m/(math.cos(phi)*math.cos(theta))
-    print(f"U1: {U1}")
+    # print(f"U1: {U1}")
 
     ex = x - xd
     eu = u - xd_dot + cu*ex
@@ -205,7 +218,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     dx_hat_dot = lamx*eu
     dx_hat += dx_hat_dot*dt
     Ux = (u_dot - dx_hat)*m/U1
-    print(f"Ux: {Ux}")
+    # print(f"Ux: {Ux}")
 
     ey = y - yd
     ev = v - yd_dot + cv*ey
@@ -215,13 +228,13 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     dy_hat_dot = lamy*ev
     dy_hat += dy_hat_dot*dt
     Uy = (v_dot - dy_hat)*m/U1
-    print(f"Uy: {Uy}")
+    # print(f"Uy: {Uy}")
 
 
     # attitude control
-    print(f"{Ux*math.sin(psi) - Uy*math.cos(psi)}")
+    # print(f"{Ux*math.sin(psi) - Uy*math.cos(psi)}")
     phid_new = math.asin(Ux*math.sin(psi) - Uy*math.cos(psi))
-    print(f"{(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new)}")
+    # print(f"{(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new)}")
     thetad_new = math.asin((Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new))
 
     epsi = psi - psid

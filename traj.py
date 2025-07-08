@@ -16,7 +16,7 @@ def circle(t):
     return xd, yd, zd, psid
 
 def test1(t):
-    return 0, 0, -t, 1.77
+    return 0, 0, t, 0
 
 def test2(t):
     up_time = 100

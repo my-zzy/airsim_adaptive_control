@@ -78,15 +78,15 @@ def state_to_lists(state_tensor):
     
     # Create lists with history (controller expects at least 2 elements)
     pos = [
-        [pos_w[0], pos_w[0]],  # x history
-        [pos_w[1], pos_w[1]],  # y history
-        [pos_w[2], pos_w[2]]   # z history
+        [pos_w[0], pos_w[0], pos_w[0]],  # x history
+        [pos_w[1], pos_w[1], pos_w[1]],  # y history
+        [pos_w[2], pos_w[2], pos_w[2]]   # z history
     ]
     
     att = [
-        [roll, roll],    # roll history
-        [pitch, pitch],  # pitch history
-        [yaw, yaw]       # yaw history
+        [roll, roll, roll],    # roll history
+        [pitch, pitch, pitch],  # pitch history
+        [yaw, yaw, yaw]       # yaw history
     ]
     
     return pos, att
@@ -112,7 +112,7 @@ def run_simulation():
     
     # Simulation parameters
     dt = 0.1  # Controller time step
-    total_time = 20.0  # Total simulation time
+    total_time = 100.0  # Total simulation time
     num_steps = int(total_time / dt)
     
     # Initial state: [pos_w(3), vel_w(3), quat_wxyz(4), ang_vel_b(3)]
@@ -154,8 +154,8 @@ def run_simulation():
         
         # Create desired trajectory lists (controller expects history)
         if step == 0:
-            posd = [[xd, xd], [yd, yd], [zd, zd]]
-            attd = [[0.0, 0.0], [0.0, 0.0], [psid, psid]]
+            posd = [[xd]*3, [yd]*3, [zd]*3]
+            attd = [[0.0]*3, [0.0]*3, [psid]*3]
         else:
             posd[0].append(xd)
             posd[1].append(yd)
@@ -170,20 +170,17 @@ def run_simulation():
                     attd[i] = attd[i][-3:]
         
         # Run adaptive controller
-        try:
-            U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_controller(
-                pos, att, posd, attd, dhat, jifen, dt
-            )
-            
-            # Update desired attitude
-            attd[0][-1] = phid_new   # roll
-            attd[1][-1] = thetad_new # pitch
-            
-        except Exception as e:
-            print(f"Controller error at step {step}: {e}")
-            # Use hover control as fallback
-            U1 = cfg.UAV_mass * 9.81
-            U2 = U3 = U4 = 0.0
+        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_controller(
+            pos, att, posd, attd, dhat, jifen, dt
+        )
+        
+        # Update desired attitude
+        attd[0][-1] = phid_new   # roll
+        attd[1][-1] = thetad_new # pitch
+
+        # Use hover control as fallback
+        # U1 = cfg.UAV_mass * 9.81
+        # U2 = U3 = U4 = 0.0
         
         # Convert control signals to PWM
         pwm_signals = control_to_pwm(U1, U2, U3, U4)
@@ -235,60 +232,55 @@ if __name__ == "__main__":
     time_data, pos_data, att_data, ctrl_data = run_simulation()
     
     # Optional: Plot results if matplotlib is available
-    try:
-        import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
+    
+    # Convert data to numpy arrays
+    time_data = np.array(time_data)
+    pos_data = np.array(pos_data)
+    att_data = np.array(att_data)
+    ctrl_data = np.array(ctrl_data)
+    
+    # Plot position
+    plt.figure(figsize=(12, 8))
+    
+    plt.subplot(2, 2, 1)
+    plt.plot(time_data, pos_data[:, 0], 'r-', label='x')
+    plt.plot(time_data, pos_data[:, 1], 'g-', label='y')
+    plt.plot(time_data, pos_data[:, 2], 'b-', label='z')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Position (m)')
+    plt.title('Position vs Time')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(2, 2, 2)
+    plt.plot(time_data, np.degrees(att_data[:, 0]), 'r-', label='roll')
+    plt.plot(time_data, np.degrees(att_data[:, 1]), 'g-', label='pitch')
+    plt.plot(time_data, np.degrees(att_data[:, 2]), 'b-', label='yaw')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Attitude (deg)')
+    plt.title('Attitude vs Time')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(2, 2, 3)
+    plt.plot(time_data, ctrl_data[:, 0], 'k-', label='U1 (thrust)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Thrust (N)')
+    plt.title('Thrust Control')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(2, 2, 4)
+    plt.plot(time_data, ctrl_data[:, 1], 'r-', label='U2 (roll)')
+    plt.plot(time_data, ctrl_data[:, 2], 'g-', label='U3 (pitch)')
+    plt.plot(time_data, ctrl_data[:, 3], 'b-', label='U4 (yaw)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Torque (N⋅m)')
+    plt.title('Torque Control')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.show()
         
-        # Convert data to numpy arrays
-        time_data = np.array(time_data)
-        pos_data = np.array(pos_data)
-        att_data = np.array(att_data)
-        ctrl_data = np.array(ctrl_data)
-        
-        # Plot position
-        plt.figure(figsize=(12, 8))
-        
-        plt.subplot(2, 2, 1)
-        plt.plot(time_data, pos_data[:, 0], 'r-', label='x')
-        plt.plot(time_data, pos_data[:, 1], 'g-', label='y')
-        plt.plot(time_data, pos_data[:, 2], 'b-', label='z')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Position (m)')
-        plt.title('Position vs Time')
-        plt.legend()
-        plt.grid(True)
-        
-        plt.subplot(2, 2, 2)
-        plt.plot(time_data, np.degrees(att_data[:, 0]), 'r-', label='roll')
-        plt.plot(time_data, np.degrees(att_data[:, 1]), 'g-', label='pitch')
-        plt.plot(time_data, np.degrees(att_data[:, 2]), 'b-', label='yaw')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Attitude (deg)')
-        plt.title('Attitude vs Time')
-        plt.legend()
-        plt.grid(True)
-        
-        plt.subplot(2, 2, 3)
-        plt.plot(time_data, ctrl_data[:, 0], 'k-', label='U1 (thrust)')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Thrust (N)')
-        plt.title('Thrust Control')
-        plt.legend()
-        plt.grid(True)
-        
-        plt.subplot(2, 2, 4)
-        plt.plot(time_data, ctrl_data[:, 1], 'r-', label='U2 (roll)')
-        plt.plot(time_data, ctrl_data[:, 2], 'g-', label='U3 (pitch)')
-        plt.plot(time_data, ctrl_data[:, 3], 'b-', label='U4 (yaw)')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Torque (N⋅m)')
-        plt.title('Torque Control')
-        plt.legend()
-        plt.grid(True)
-        
-        plt.tight_layout()
-        plt.show()
-        
-    except ImportError:
-        print("Matplotlib not available. Plotting skipped.")
-        print("Install matplotlib with: pip install matplotlib")
-
