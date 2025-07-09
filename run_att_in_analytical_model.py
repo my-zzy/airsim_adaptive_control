@@ -4,8 +4,9 @@ import time
 import math
 import config as cfg
 from analytical_model import SimpleFlightDynamicsTorch
-from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller
+from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller, adaptive_single_channel_controller
 import traj
+import matplotlib.pyplot as plt
 
 # Initialize the analytical model
 model = SimpleFlightDynamicsTorch(num_samples=1, dt=0.005)
@@ -112,7 +113,7 @@ def run_simulation():
     
     # Simulation parameters
     dt = 0.1  # Controller time step
-    total_time = 100.0  # Total simulation time
+    total_time = 10.0  # Total simulation time
     num_steps = int(total_time / dt)
     
     # Initial state: [pos_w(3), vel_w(3), quat_wxyz(4), ang_vel_b(3)]
@@ -171,8 +172,8 @@ def run_simulation():
                     attd[i] = attd[i][-3:]
         
         # Run adaptive controller
-        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_controller(
-            pos, att, posd, attd, dhat, jifen, dt
+        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_single_channel_controller(
+            pos, att, posd, attd, dhat, jifen, dt, current_time
         )
         
         # Update desired attitude
@@ -217,9 +218,9 @@ def run_simulation():
         # Print progress every 50 steps
         if step % 50 == 0:
             pos_current = current_state[0, 0:3].cpu().numpy()
-            print(f"Step {step:3d}, Time: {current_time:5.1f}s, "
-                  f"Pos: [{pos_current[0]:6.2f}, {pos_current[1]:6.2f}, {pos_current[2]:6.2f}], "
-                  f"Target: [{xd:6.2f}, {yd:6.2f}, {zd:6.2f}]")
+            # print(f"Step {step:3d}, Time: {current_time:5.1f}s, "
+            #       f"Pos: [{pos_current[0]:6.2f}, {pos_current[1]:6.2f}, {pos_current[2]:6.2f}], "
+            #       f"Target: [{xd:6.2f}, {yd:6.2f}, {zd:6.2f}]")
     
     print("Simulation completed!")
     
@@ -231,13 +232,12 @@ def run_simulation():
     
     return time_log, position_log, attitude_log, control_log, pwm_log
 
+
 if __name__ == "__main__":
     # Run the simulation
     time_data, pos_data, att_data, ctrl_data, pwm_data = run_simulation()
     
-    # Optional: Plot results if matplotlib is available
-    import matplotlib.pyplot as plt
-    
+
     # Convert data to numpy arrays
     time_data = np.array(time_data)
     pos_data = np.array(pos_data)
@@ -300,4 +300,4 @@ if __name__ == "__main__":
     
     plt.tight_layout()
     plt.show()
-        
+

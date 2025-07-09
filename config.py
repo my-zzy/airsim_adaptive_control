@@ -8,26 +8,26 @@ device = "cpu"
 # 自适应控制参数
 cx = 1
 cy = 1
-cz = 1
+cz = 0.1
 cu = 1
 cv = 1
 cw = 1
 lamx = 2
 lamy = 2
-lamz = 2
+lamz = 0.8
 
-lamphi = 0.1
-lamthe = 0.1
-lampsi = 0.05
-cphi = 3
-cthe = 3
-cpsi = 5
-cp = 17
-cq = 17
-cr = 30
-lamphi_star = 25
-lamthe_star = 25
-lampsi_star = 25
+lamphi = 0.5
+lamthe = 0.001
+lampsi = 0.0005
+cphi = 0.3
+cthe = 0.03
+cpsi = 0.05
+cp = 1
+cq = 0.01
+cr = 0.3
+lamphi_star = 0.02
+lamthe_star = 0
+lampsi_star = 0
 
 # 无人机动力学模型参数
 UAV_mass=1.0 # 无人机总重量
