@@ -149,7 +149,7 @@ def pd_controller(pos, att, posd, attd, dt, t):
 
 def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # lowpass filter
-    alp = 0.01
+    alp = 0.1
     pos = [lowpass_filter(p, alp) for p in pos]
     att = [lowpass_filter(a, alp) for a in att]
     posd = [lowpass_filter(pd, alp) for pd in posd]
@@ -158,10 +158,14 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
 
     phi = att[0][-1]
 
-    if t < 5:
+    # Use a smoother reference trajectory instead of step input
+    if t < 2:
         phid_new = 0
+    elif t < 7:
+        # Smooth transition over 5 seconds
+        phid_new = 0.1 * (1 - math.cos(math.pi * (t - 2) / 5)) / 2
     else:
-        phid_new = 0.3
+        phid_new = 0.1
     thetad_new = 0
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
@@ -176,17 +180,29 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
     phid_dot2 = ((attd[0][-1] - attd[0][-2])/dt - (attd[0][-2] - attd[0][-3])/dt)/dt
     # print(attd[0][-1], phid_dot, phid_dot2)
 
+    # Adaptive control law with improved stability
     ephi = phi - attd[0][-1]
     ephi_dot = phi_dot - phid_dot
-    xphi += ephi
+    xphi += ephi * dt  # Proper integration
+    
+    # Limit integral windup
+    # xphi = max(-1.0, min(1.0, xphi))
+    
     alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
     phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
-    # print(phi_dot2, -dphi_hat, -theta_dot*psi_dot*(Iyy-Izz)/Ixx, Ixx/l)
-    print(np.array([-cp*beta_phi, phid_dot2, -cphi*ephi_dot, -lamphi*ephi, -ephi])*1000)
+    
+    # Debug output with reduced frequency
+    if int(t * 10) % 1 == 0:  # Print every 1 second
+        print(f"t={t:.1f}: phi={phi:.4f}, phid={attd[0][-1]:.4f}, ephi={ephi:.4f}, U2={U2:.4f}")
+        components = np.array([-cp*beta_phi, phid_dot2, -cphi*ephi_dot, -lamphi*ephi, -ephi])
+        print(f"Control components: {components}")
+    
+    # Limit control output to prevent instability
+    # U2 = max(-2.0, min(2.0, U2))
 
     dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
     jifen_old = [xphi, xtheta, xpsi]

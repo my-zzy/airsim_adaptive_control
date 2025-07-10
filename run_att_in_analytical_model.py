@@ -113,7 +113,7 @@ def run_simulation():
     
     # Simulation parameters
     dt = 0.1  # Controller time step
-    total_time = 10.0  # Total simulation time
+    total_time = 20.0  # Total simulation time
     num_steps = int(total_time / dt)
     
     # Initial state: [pos_w(3), vel_w(3), quat_wxyz(4), ang_vel_b(3)]

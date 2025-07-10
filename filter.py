@@ -50,3 +50,12 @@ print("原始位置数据:", positions)
 print("平滑位置数据:", smoothed_positions)
 print("计算的速度:", velocities)
 print("计算的加速度:", accelerations)
+
+for t in range(20):
+    if t < 2:
+        phid_new = 0
+    elif t < 7:
+        # Smooth transition over 5 seconds
+        phid_new = 0.1 * (1 - math.cos(math.pi * (t - 2) / 5)) / 2
+    else:
+        phid_new = 0.1
