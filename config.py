@@ -16,16 +16,16 @@ lamx = 2
 lamy = 2
 lamz = 0.8
 
-lamphi = 0.1      # Reduced from 0.5
+lamphi = 0.1
 lamthe = 0.001
 lampsi = 0.0005
-cphi = 0.5        # Increased for better damping
+cphi = 10
 cthe = 0.03
 cpsi = 0.05
-cp = 0.3          # Reduced from 1.0 for stability
+cp = 0.1
 cq = 0.01
 cr = 0.3
-lamphi_star = 0.01  # Reduced from 0.02
+lamphi_star = 0.0
 lamthe_star = 0
 lampsi_star = 0
 

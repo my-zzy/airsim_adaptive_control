@@ -190,7 +190,7 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
     
     alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
-    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
+    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - 0.1*ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
@@ -199,6 +199,7 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
     if int(t * 10) % 1 == 0:  # Print every 1 second
         print(f"t={t:.1f}: phi={phi:.4f}, phid={attd[0][-1]:.4f}, ephi={ephi:.4f}, U2={U2:.4f}")
         components = np.array([-cp*beta_phi, phid_dot2, -cphi*ephi_dot, -lamphi*ephi, -ephi])
+        # components = np.array([phi_dot2, -dphi_hat, -theta_dot*psi_dot*(Iyy-Izz)/Ixx])
         print(f"Control components: {components}")
     
     # Limit control output to prevent instability

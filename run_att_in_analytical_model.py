@@ -194,9 +194,9 @@ def run_simulation():
             current_state, current_filter_outputs = model._dynamics_step(
                 current_state, current_filter_outputs, pwm_signals
             )
-        
+        # print(current_state)
         # Update position and attitude lists for next iteration
-        pos, att = state_to_lists(current_state)
+        # pos, att = state_to_lists(current_state)
         if step > 0:  # Update history
             state_np = current_state[0].cpu().numpy()
             pos_w = state_np[0:3]
