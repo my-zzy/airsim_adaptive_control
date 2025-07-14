@@ -18,16 +18,16 @@ lamz = 0.8
 
 lamphi = 0.1
 lamthe = 0.1
-lampsi = 0.001
+lampsi = 0.01
 cphi = 5
 cthe = 5
-cpsi = 1
+cpsi = 5
 cp = 0.1
 cq = 0.1
 cr = 0.01
 lamphi_star = 0.1
 lamthe_star = 0.1
-lampsi_star = 0.0
+lampsi_star = 0.01
 
 # 无人机动力学模型参数
 UAV_mass=1.0 # 无人机总重量

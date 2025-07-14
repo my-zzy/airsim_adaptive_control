@@ -263,8 +263,8 @@ def adaptive_psi_controller(pos, att, posd, attd, dhat, jifen, dt, t):
 
     U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
     U2 = 0.0
-    U3 = 1e-6
-    U4 = 0.0
+    U3 = 0.0
+    # U4 = 1e-6
 
     return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 
@@ -282,8 +282,9 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     psi = att[2][-1]
 
     phid_new = 0.1*math.sin(t)
-    phid_new = 0.0
+    # phid_new = 0.0
     thetad_new = 0.0
+    thetad_new = -0.1*math.sin(t)
     psid = attd[2][-1]  # Use the last value of psid from attd
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
@@ -338,7 +339,7 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # NED convention: negative thrust value creates upward force (opposes gravity)  
     U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
 
-    return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
+    return U1, -U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 
 def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     # lowpass filter

@@ -259,7 +259,7 @@ def run_simulation():
                     attd[i] = attd[i][-3:]
         
         # Run adaptive controller
-        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_psi_controller(
+        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_att_controller(
             pos, att, posd, attd, dhat, jifen, dt, current_time
         )
         # Update desired attitude
