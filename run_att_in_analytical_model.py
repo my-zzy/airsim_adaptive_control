@@ -4,7 +4,7 @@ import time
 import math
 import config as cfg
 from analytical_model import SimpleFlightDynamicsTorch
-from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller, adaptive_single_channel_controller
+from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller, adaptive_single_channel_controller, adaptive_psi_controller
 import traj
 import matplotlib.pyplot as plt
 
@@ -15,47 +15,134 @@ def control_to_pwm(U1, U2, U3, U4):
     """
     Convert control signals (U1, U2, U3, U4) to PWM signals for 4 motors.
     
+    Standard X-configuration quadrotor:
+    Motor layout (viewed from top):
+         X (Front)
+    FL       FR
+      \     /
+       \   /
+        \ /
+         +  (Center)
+        / \
+       /   \
+      /     \
+    RL       RR
+         (Rear)
+    
+    Motor rotation directions:
+    - FR: CW  (generates CCW torque)
+    - FL: CCW (generates CW torque) 
+    - RR: CCW (generates CW torque)
+    - RL: CW  (generates CCW torque)
+    
     Args:
-        U1: Total thrust
-        U2: Roll torque
-        U3: Pitch torque
-        U4: Yaw torque
+        U1: Total thrust command (negative = upward force, positive = downward force in NED)
+        U2: Roll torque (positive = roll right)
+        U3: Pitch torque (positive = pitch up/nose up)
+        U4: Yaw torque (positive = yaw right/CW)
     
     Returns:
         pwm_signals: torch.Tensor of shape (1, 4) with PWM values [0, 1]
     """
-    # Motor configuration: FR, RL, FL, RR (Front-Right, Rear-Left, Front-Left, Rear-Right)
-    # Convert torques to individual motor thrusts
-    L = cfg.UAV_arm_length * math.cos(math.pi / 4.0)  # Effective arm length
+    # Effective arm length for X-configuration
+    L = cfg.UAV_arm_length * math.cos(math.pi / 4.0)
     
-    # Solve the motor mixing equations
-    # U1 = -(T_FR + T_RL + T_FL + T_RR)
-    # U2 = L * (T_FL + T_RL - T_FR - T_RR)
-    # U3 = L * (T_FR + T_FL - T_RL - T_RR)
-    # U4 = T_FR - T_RL + T_FL - T_RR (simplified, assuming torque coefficients)
+    # Motor mixing matrix for X-configuration
+    # Standard equations:
+    # U1 = T_FR + T_FL + T_RR + T_RL  (total thrust)
+    # U2 = L * (T_FR - T_FL + T_RR - T_RL)  (roll torque)
+    # U3 = L * (T_FR + T_FL - T_RR - T_RL)  (pitch torque) 
+    # U4 = k_M * (T_FR - T_FL - T_RR + T_RL)  (yaw torque)
+    # where k_M is the moment coefficient ratio (torque/thrust)
     
-    # Base thrust for each motor
-    base_thrust = -U1 / 4.0
+    # Torque to thrust ratio (from motor characteristics)
+    k_M = cfg.UAV_max_torque / cfg.UAV_max_thrust
     
-    # Torque contributions
-    roll_contrib = U2 / (4.0 * L)
-    pitch_contrib = U3 / (4.0 * L)
-    yaw_contrib = U4 / (4.0 * cfg.UAV_max_torque)  # Simplified
+    # Solve the inverse mixing matrix:
+    # [T_FR]   [1   1/(2L)   1/(2L)   1/(2k_M)] [U1]
+    # [T_FL] = [1  -1/(2L)   1/(2L)  -1/(2k_M)] [U2]
+    # [T_RR]   [1   1/(2L)  -1/(2L)  -1/(2k_M)] [U3] 
+    # [T_RL]   [1  -1/(2L)  -1/(2L)   1/(2k_M)] [U4]
     
-    # Calculate individual motor thrusts
-    T_FR = base_thrust - roll_contrib + pitch_contrib + yaw_contrib
-    T_RL = base_thrust + roll_contrib - pitch_contrib - yaw_contrib
-    T_FL = base_thrust + roll_contrib + pitch_contrib + yaw_contrib
-    T_RR = base_thrust - roll_contrib - pitch_contrib - yaw_contrib
+    base_thrust = (-U1) / 4.0  # Convert: negative U1 command → positive thrust magnitude
+    
+    # Torque contributions (note: factor of 2 because of X-config geometry)
+    roll_contrib = U2 / (2.0 * L)
+    pitch_contrib = U3 / (2.0 * L)
+    yaw_contrib = U4 / (2.0 * k_M)
+    
+    # Calculate individual motor thrusts using correct mixing
+    T_FR = base_thrust + roll_contrib + pitch_contrib + yaw_contrib
+    T_FL = base_thrust - roll_contrib + pitch_contrib - yaw_contrib
+    T_RR = base_thrust + roll_contrib - pitch_contrib - yaw_contrib
+    T_RL = base_thrust - roll_contrib - pitch_contrib + yaw_contrib
     
     # Convert thrusts to PWM signals (normalized by max thrust)
-    pwm_FR = max(0, min(1, T_FR / cfg.UAV_max_thrust))
-    pwm_RL = max(0, min(1, T_RL / cfg.UAV_max_thrust))
-    pwm_FL = max(0, min(1, T_FL / cfg.UAV_max_thrust))
-    pwm_RR = max(0, min(1, T_RR / cfg.UAV_max_thrust))
+    pwm_FR = max(0.0, min(1.0, T_FR / cfg.UAV_max_thrust))
+    pwm_FL = max(0.0, min(1.0, T_FL / cfg.UAV_max_thrust))
+    pwm_RR = max(0.0, min(1.0, T_RR / cfg.UAV_max_thrust))
+    pwm_RL = max(0.0, min(1.0, T_RL / cfg.UAV_max_thrust))
     
+    # Return in order: FR, RL, FL, RR (matching your original order)
     return torch.tensor([[pwm_FR, pwm_RL, pwm_FL, pwm_RR]], 
                        device=cfg.device, dtype=torch.float32)
+
+def verify_control_mixing():
+    """
+    Verify that the control mixing is correct by testing known inputs.
+    """
+    print("Testing control allocation matrix...")
+    
+    # Test 1: Pure thrust (hover)
+    U1, U2, U3, U4 = 10.0, 0.0, 0.0, 0.0
+    pwm = control_to_pwm(U1, U2, U3, U4)
+    print(f"Pure thrust U1={U1}: PWM = {pwm.numpy().flatten()}")
+    print(f"  Expected: all motors equal = {U1/4.0/cfg.UAV_max_thrust:.3f}")
+    
+    # Test 2: Pure roll 
+    U1, U2, U3, U4 = 10.0, 1.0, 0.0, 0.0
+    pwm = control_to_pwm(U1, U2, U3, U4)
+    print(f"Roll torque U2={U2}: PWM = {pwm.numpy().flatten()}")
+    print(f"  FR & RR should be higher, FL & RL should be lower")
+    
+    # Test 3: Pure pitch
+    U1, U2, U3, U4 = 10.0, 0.0, 1.0, 0.0
+    pwm = control_to_pwm(U1, U2, U3, U4)
+    print(f"Pitch torque U3={U3}: PWM = {pwm.numpy().flatten()}")
+    print(f"  Front motors (FR & FL) should be higher, rear motors (RR & RL) should be lower")
+    
+    # Test 4: Pure yaw
+    U1, U2, U3, U4 = 10.0, 0.0, 0.0, 1.0
+    pwm = control_to_pwm(U1, U2, U3, U4)
+    print(f"Yaw torque U4={U4}: PWM = {pwm.numpy().flatten()}")
+    print(f"  CW motors (FR & RL) should be higher, CCW motors (FL & RR) should be lower")
+    
+    # Verify thrust conservation
+    L = cfg.UAV_arm_length * math.cos(math.pi / 4.0)
+    k_M = cfg.UAV_max_torque / cfg.UAV_max_thrust
+    
+    for test_name, (U1, U2, U3, U4) in [
+        ("Hover", (10.0, 0.0, 0.0, 0.0)),
+        ("Roll", (10.0, 2.0, 0.0, 0.0)),
+        ("Pitch", (10.0, 0.0, 2.0, 0.0)),
+        ("Yaw", (10.0, 0.0, 0.0, 1.0))
+    ]:
+        pwm = control_to_pwm(U1, U2, U3, U4)
+        T_FR, T_RL, T_FL, T_RR = pwm.numpy().flatten() * cfg.UAV_max_thrust
+        
+        # Verify forward equations
+        U1_check = T_FR + T_FL + T_RR + T_RL
+        U2_check = L * (T_FR - T_FL + T_RR - T_RL)
+        U3_check = L * (T_FR + T_FL - T_RR - T_RL)
+        U4_check = k_M * (T_FR - T_FL - T_RR + T_RL)
+        
+        print(f"\n{test_name} test verification:")
+        print(f"  Input:  U1={U1:.1f}, U2={U2:.1f}, U3={U3:.1f}, U4={U4:.1f}")
+        print(f"  Output: U1={U1_check:.1f}, U2={U2_check:.1f}, U3={U3_check:.1f}, U4={U4_check:.1f}")
+        print(f"  Error:  dU1={abs(U1-U1_check):.3f}, dU2={abs(U2-U2_check):.3f}, dU3={abs(U3-U3_check):.3f}, dU4={abs(U4-U4_check):.3f}")
+    
+    print("\nControl allocation verification complete!")
+    print("="*50)
 
 def state_to_lists(state_tensor):
     """
@@ -172,10 +259,9 @@ def run_simulation():
                     attd[i] = attd[i][-3:]
         
         # Run adaptive controller
-        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_single_channel_controller(
+        U1, U2, U3, U4, phid_new, thetad_new, dhat, jifen = adaptive_psi_controller(
             pos, att, posd, attd, dhat, jifen, dt, current_time
         )
-        
         # Update desired attitude
         # attd[0][-1] = phid_new
         # attd[1][-1] = thetad_new
@@ -234,6 +320,9 @@ def run_simulation():
 
 
 if __name__ == "__main__":
+    # First verify the control allocation
+    verify_control_mixing()
+    
     # Run the simulation
     time_data, pos_data, att_data, ctrl_data, pwm_data = run_simulation()
     

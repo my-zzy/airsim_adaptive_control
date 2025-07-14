@@ -161,11 +161,12 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
     # Use a smoother reference trajectory instead of step input
     if t < 2:
         phid_new = 0
-    elif t < 7:
-        # Smooth transition over 5 seconds
-        phid_new = 0.1 * (1 - math.cos(math.pi * (t - 2) / 5)) / 2
+    # elif t < 7:
+    #     # Smooth transition over 5 seconds
+    #     phid_new = 0.1 * (1 - math.cos(math.pi * (t - 2) / 5)) / 2
     else:
         phid_new = 0.1
+        phid_new = 0.1*math.sin(t-2)
     thetad_new = 0
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
@@ -208,13 +209,14 @@ def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t)
     dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
     jifen_old = [xphi, xtheta, xpsi]
 
-    U1 = -UAV_mass*9.81
+    # NED convention: negative thrust value creates upward force (opposes gravity)
+    U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
     U3 = 0
     U4 = 0
 
     return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 
-def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
+def adaptive_psi_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # lowpass filter
     alp = 0.1
     pos = [lowpass_filter(p, alp) for p in pos]
@@ -226,9 +228,9 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     theta = att[1][-1]
     psi = att[2][-1]
 
-    phid_new = 0.1*math.sin(0.01*t)
-    thetad_new = 0
-    psid = 0
+    phid_new = 0.0
+    thetad_new = 0.0
+    psid = attd[2][-1]  # Use the last value of psid from attd
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
     xphi, xtheta, xpsi = jifen
@@ -248,7 +250,61 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
 
     epsi = psi - psid
     epsi_dot = psi_dot - psid_dot
-    xpsi += epsi    # TODO:initialize xpsi
+    xpsi += epsi*dt
+    alpha_psi = psid_dot - cpsi*epsi
+    beta_psi = psi_dot - alpha_psi + lampsi*xpsi
+    psi_dot2 = -cr*beta_psi + psid_dot2 - cpsi*epsi_dot - lampsi*epsi - epsi
+    dpsi_hat_dot = lampsi_star*beta_psi
+    dpsi_hat += dpsi_hat_dot*dt
+    U4 = (psi_dot2 - dpsi_hat - theta_dot*phi_dot*(Ixx-Iyy)/Izz)*Izz/l
+
+    dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
+    jifen_old = [xphi, xtheta, xpsi]
+
+    U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
+    U2 = 0.0
+    U3 = 1e-6
+    U4 = 0.0
+
+    return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
+
+
+def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
+    # lowpass filter
+    alp = 0.1
+    pos = [lowpass_filter(p, alp) for p in pos]
+    att = [lowpass_filter(a, alp) for a in att]
+    posd = [lowpass_filter(pd, alp) for pd in posd]
+    attd = [lowpass_filter(ad, alp) for ad in attd]
+
+    phi = att[0][-1]
+    theta = att[1][-1]
+    psi = att[2][-1]
+
+    phid_new = 0.1*math.sin(t)
+    phid_new = 0.0
+    thetad_new = 0.0
+    psid = attd[2][-1]  # Use the last value of psid from attd
+
+    dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
+    xphi, xtheta, xpsi = jifen
+
+
+    phi_dot = (att[0][-1] - att[0][-2])/dt
+    theta_dot = (att[1][-1] - att[1][-2])/dt
+    psi_dot = (att[2][-1] - att[2][-2])/dt
+
+    phid_dot = (attd[0][-1] - attd[0][-2])/dt
+    thetad_dot = (attd[1][-1] - attd[1][-2])/dt
+    psid_dot = (attd[2][-1] - attd[2][-2])/dt
+
+    phid_dot2 = ((attd[0][-1] - attd[0][-2])/dt - (attd[0][-2] - attd[0][-3])/dt)/dt
+    thetad_dot2 = ((attd[1][-1] - attd[1][-2])/dt - (attd[1][-2] - attd[1][-3])/dt)/dt
+    psid_dot2 = ((attd[2][-1] - attd[2][-2])/dt - (attd[2][-2] - attd[2][-3])/dt)/dt
+
+    epsi = psi - psid
+    epsi_dot = psi_dot - psid_dot
+    xpsi += epsi*dt
     alpha_psi = psid_dot - cpsi*epsi
     beta_psi = psi_dot - alpha_psi + lampsi*xpsi
     psi_dot2 = -cr*beta_psi + psid_dot2 - cpsi*epsi_dot - lampsi*epsi - epsi
@@ -258,20 +314,20 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
 
     ephi = phi - phid_new
     ephi_dot = phi_dot - phid_dot
-    xphi += ephi
+    xphi += ephi*dt
     alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
-    phi_dot2 = -cr*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
+    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
 
     ethata = theta - thetad_new
     etheta_dot = theta_dot - thetad_dot
-    xtheta += ethata
+    xtheta += ethata*dt
     alpha_theta = thetad_dot - cthe*ethata
     beta_theta = theta_dot - alpha_theta + lamthe*xtheta
-    theta_dot2 = -cr*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
+    theta_dot2 = -cq*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
     dtheta_hat_dot = lamthe_star*beta_theta
     dtheta_hat += dtheta_hat_dot*dt
     U3 = (theta_dot2 - dtheta_hat - phi_dot*psi_dot*(Izz-Ixx)/Iyy)*Iyy/l
@@ -279,7 +335,8 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
     jifen_old = [xphi, xtheta, xpsi]
 
-    U1 = -UAV_mass*9.81
+    # NED convention: negative thrust value creates upward force (opposes gravity)  
+    U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
 
     return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 

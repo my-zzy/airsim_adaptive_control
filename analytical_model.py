@@ -159,6 +159,7 @@ class SimpleFlightDynamicsTorch:
         tau_x_b = self.L_eff * (T_FL + T_RL - T_FR - T_RR)
         tau_y_b = self.L_eff * (T_FR + T_FL - T_RL - T_RR)
         tau_z_b = torch.sum(rotor_torques_b, dim=1)
+        # print(f"tau_x_b: {tau_x_b}, tau_y_b: {tau_y_b}, tau_z_b: {tau_z_b}")
         torques_actuators_b = torch.stack((tau_x_b, tau_y_b, tau_z_b), dim=-1) # (K, 3)
 
         # 计算阻力
