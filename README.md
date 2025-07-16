@@ -4,6 +4,11 @@ Quadrotor simulation in Airsim using adaptive control
 ## main problem
 attitude control has too much overshoot which makes position control impossible
 
+## quick run
+```
+python run_att_in_analytical_model.py
+```
+
 ## core code
 |file name|function|remark|
 |:------:|:------:|:------:|
