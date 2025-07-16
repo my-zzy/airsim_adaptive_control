@@ -2,7 +2,10 @@
 Quadrotor simulation in Airsim using adaptive control
 
 ## main problem
-attitude control has too much overshoot which makes position control impossible
++ attitude control overshoot
++ UAV_tc -- the time constant of a first-order inertial system
++ control signal dt
++ signal filter alpha
 
 ## quick run
 ```

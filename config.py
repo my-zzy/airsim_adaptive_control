@@ -6,28 +6,28 @@ import torch
 device = "cpu"
 
 # 自适应控制参数 - Conservative tuning for stability
-cx = 1
-cy = 1
+cx = 0.1
+cy = 0.1
 cz = 0.1
-cu = 1
-cv = 1
-cw = 5
-lamx = 2
-lamy = 2
-lamz = 0.8
+cu = 10
+cv = 10
+cw = 10
+lamx = 1
+lamy = 1
+lamz = 1
 
-lamphi = 0.01
-lamthe = 0.1
-lampsi = 0.01
-cphi = 5
-cthe = 5
-cpsi = 5
+lamphi = 20
+lamthe = 20
+lampsi = 8
+cphi = 17
+cthe = 17
+cpsi = 10
 cp = 0.1
 cq = 0.1
-cr = 0.01
-lamphi_star = 0.01
+cr = 0.1
+lamphi_star = 0.1
 lamthe_star = 0.1
-lampsi_star = 0.01
+lampsi_star = 0.1
 
 # 无人机动力学模型参数
 UAV_mass=1.0 # 无人机总重量

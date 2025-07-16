@@ -4,7 +4,7 @@ import time
 import math
 import config as cfg
 from analytical_model import SimpleFlightDynamicsTorch
-from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller, adaptive_single_channel_controller, adaptive_psi_controller
+from controller_old import adaptive_controller, quaternion_to_euler, adaptive_att_controller, adaptive_single_channel_controller, adaptive_psi_controller
 import traj
 import matplotlib.pyplot as plt
 
@@ -200,7 +200,7 @@ def run_simulation():
     
     # Simulation parameters
     dt = 0.01  # Controller time step
-    total_time = 10.0  # Total simulation time
+    total_time = 5.0  # Total simulation time
     num_steps = int(total_time / dt)
     
     # Initial state: [pos_w(3), vel_w(3), quat_wxyz(4), ang_vel_b(3)]

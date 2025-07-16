@@ -282,9 +282,9 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     psi = att[2][-1]
 
     phid_new = 0.1*math.sin(t)
-    # phid_new = 0.0
+    phid_new = 0.2
     thetad_new = 0.0
-    thetad_new = -0.1*math.sin(t)
+    # thetad_new = -0.1*math.sin(t)
     psid = attd[2][-1]  # Use the last value of psid from attd
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
@@ -337,11 +337,11 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     jifen_old = [xphi, xtheta, xpsi]
 
     # NED convention: negative thrust value creates upward force (opposes gravity)  
-    U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
+    U1 = -UAV_mass*12  # Hover thrust (negative for upward force in NED)
 
     return U1, -U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 
-def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
+def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # lowpass filter
     alp = 0.1
     pos = [lowpass_filter(p, alp) for p in pos]
@@ -365,7 +365,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
     xphi, xtheta, xpsi = jifen
-    g = 9.8
+    g = -9.8
 
     # calculate pos_dot & att_dot
     u = (pos[0][-1] - pos[0][-2])/dt    # x,y,z_dot
@@ -402,34 +402,37 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     dz_hat_dot = lamz*ew
     dz_hat += dz_hat_dot*dt
     U1 = (w_dot - dz_hat +g)*m/(math.cos(phi)*math.cos(theta))
-    # print(f"U1: {U1}")
+    print(f"U1: {U1}")
 
     ex = x - xd
     eu = u - xd_dot + cu*ex
     ex_dot = eu - cx*ex
     u_dot = -cu*eu - ex + xd_dot2 - cx*ex_dot
-    u_dot = 0   # for testing
+    # u_dot = 0   # for testing
     dx_hat_dot = lamx*eu
     dx_hat += dx_hat_dot*dt
     Ux = (u_dot - dx_hat)*m/U1
-    # print(f"Ux: {Ux}")
+    print(f"Ux: {Ux}")
 
     ey = y - yd
     ev = v - yd_dot + cv*ey
     ey_dot = ev - cy*ey
     v_dot = -cv*ev - ey + yd_dot2 - cy*ey_dot
-    v_dot = 0   # for testing
+    # v_dot = 0   # for testing
     dy_hat_dot = lamy*ev
     dy_hat += dy_hat_dot*dt
     Uy = (v_dot - dy_hat)*m/U1
-    # print(f"Uy: {Uy}")
+    print(f"Uy: {Uy}")
 
 
     # attitude control
     # print(f"{Ux*math.sin(psi) - Uy*math.cos(psi)}")
     phid_new = math.asin(Ux*math.sin(psi) - Uy*math.cos(psi))
-    # print(f"{(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new)}")
+    # print(f"{(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new), Ux, Uy, psi, phid_new}")
     thetad_new = math.asin((Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new))
+
+    components = np.array([(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new), Ux, Uy, psi, phid_new])
+    print(f"Control components: {components}\n")
 
     epsi = psi - psid
     epsi_dot = psi_dot - psid_dot
@@ -446,7 +449,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     xphi += ephi
     alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
-    phi_dot2 = -cr*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
+    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
@@ -456,7 +459,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     xtheta += ethata
     alpha_theta = thetad_dot - cthe*ethata
     beta_theta = theta_dot - alpha_theta + lamthe*xtheta
-    theta_dot2 = -cr*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
+    theta_dot2 = -cq*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
     dtheta_hat_dot = lamthe_star*beta_theta
     dtheta_hat += dtheta_hat_dot*dt
     U3 = (theta_dot2 - dtheta_hat - phi_dot*psi_dot*(Izz-Ixx)/Iyy)*Iyy/l
@@ -464,4 +467,4 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
     jifen_old = [xphi, xtheta, xpsi]
 
-    return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
+    return U1, -U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old

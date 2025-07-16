@@ -4,7 +4,7 @@ import time
 import math
 import config as cfg
 from analytical_model import SimpleFlightDynamicsTorch
-from controller import adaptive_controller, quaternion_to_euler, adaptive_att_controller
+from controller_old import adaptive_controller, quaternion_to_euler, adaptive_att_controller
 import traj
 import matplotlib.pyplot as plt
 
