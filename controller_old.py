@@ -147,8 +147,6 @@ def pd_controller(pos, att, posd, attd, dt, t):
     # Why we need to return phid & thetad?
     # To calculate phid_dot & thetad_dot
 
-
-
 def adaptive_single_channel_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # lowpass filter
     alp = 0.1
@@ -283,45 +281,26 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     theta = att[1][-1]
     psi = att[2][-1]
 
-    # Generate smooth reference trajectory with analytical derivatives using the new function
-    phid_new, phid_dot_new, phid_dot2_new = \
-        smooth_reference_trajectory(t, target_value=0.2, transition_start=1.0, transition_duration=2.0)
-    
+    phid_new = 0.1*math.sin(t)
+    # phid_new = 0.0
     thetad_new = 0.0
-    thetad_dot_new = 0.0
-    thetad_dot2_new = 0.0
+    thetad_new = -0.1*math.sin(t)
     psid = attd[2][-1]  # Use the last value of psid from attd
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
     xphi, xtheta, xpsi = jifen
 
-    # Use smoothed derivatives for actual states with low-pass filtering
-    phi_dot_raw = (att[0][-1] - att[0][-2])/dt
-    theta_dot_raw = (att[1][-1] - att[1][-2])/dt
-    psi_dot_raw = (att[2][-1] - att[2][-2])/dt
-    
-    # Apply simple exponential smoothing to derivatives (you can adjust alpha)
-    alpha_derivative = 0.3  # Lower = more smoothing
-    if not hasattr(adaptive_att_controller, 'phi_dot_filtered'):
-        adaptive_att_controller.phi_dot_filtered = phi_dot_raw
-        adaptive_att_controller.theta_dot_filtered = theta_dot_raw
-        adaptive_att_controller.psi_dot_filtered = psi_dot_raw
-    
-    adaptive_att_controller.phi_dot_filtered = alpha_derivative * phi_dot_raw + (1 - alpha_derivative) * adaptive_att_controller.phi_dot_filtered
-    adaptive_att_controller.theta_dot_filtered = alpha_derivative * theta_dot_raw + (1 - alpha_derivative) * adaptive_att_controller.theta_dot_filtered
-    adaptive_att_controller.psi_dot_filtered = alpha_derivative * psi_dot_raw + (1 - alpha_derivative) * adaptive_att_controller.psi_dot_filtered
-    
-    phi_dot = adaptive_att_controller.phi_dot_filtered
-    theta_dot = adaptive_att_controller.theta_dot_filtered
-    psi_dot = adaptive_att_controller.psi_dot_filtered
 
-    # Use analytical derivatives for reference instead of numerical
-    phid_dot = phid_dot_new
-    thetad_dot = thetad_dot_new
+    phi_dot = (att[0][-1] - att[0][-2])/dt
+    theta_dot = (att[1][-1] - att[1][-2])/dt
+    psi_dot = (att[2][-1] - att[2][-2])/dt
+
+    phid_dot = (attd[0][-1] - attd[0][-2])/dt
+    thetad_dot = (attd[1][-1] - attd[1][-2])/dt
     psid_dot = (attd[2][-1] - attd[2][-2])/dt
 
-    phid_dot2 = phid_dot2_new
-    thetad_dot2 = thetad_dot2_new
+    phid_dot2 = ((attd[0][-1] - attd[0][-2])/dt - (attd[0][-2] - attd[0][-3])/dt)/dt
+    thetad_dot2 = ((attd[1][-1] - attd[1][-2])/dt - (attd[1][-2] - attd[1][-3])/dt)/dt
     psid_dot2 = ((attd[2][-1] - attd[2][-2])/dt - (attd[2][-2] - attd[2][-3])/dt)/dt
 
     epsi = psi - psid
@@ -335,26 +314,21 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     U4 = (psi_dot2 - dpsi_hat - theta_dot*phi_dot*(Ixx-Iyy)/Izz)*Izz/l
 
     ephi = phi - phid_new
-    ephi_dot = phi_dot - phid_dot_new  # Use analytical derivative
+    ephi_dot = phi_dot - phid_dot
     xphi += ephi*dt
-    alpha_phi = phid_dot_new - cphi*ephi  # Use analytical derivative
+    alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
-    phi_dot2 = -cp*beta_phi + phid_dot2_new - cphi*ephi_dot - lamphi*ephi - ephi  # Use analytical second derivative
+    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
-    print(f"t={t:.2f}: phi={phi:.4f}, phid={phid_new:.4f}, ephi={ephi:.4f}, U2={U2:.4f}")
-    components = np.array([-cp*beta_phi, phid_dot2_new, -cphi*ephi_dot, -lamphi*ephi, -ephi])
-    # components = np.array([phid_dot2, phid_dot])
-    # components = np.array([phi_dot2, -dphi_hat, -theta_dot*psi_dot*(Iyy-Izz)/Ixx])
-    print(f"Control components: {components}\n")
 
     ethata = theta - thetad_new
-    etheta_dot = theta_dot - thetad_dot_new  # Use analytical derivative
+    etheta_dot = theta_dot - thetad_dot
     xtheta += ethata*dt
-    alpha_theta = thetad_dot_new - cthe*ethata  # Use analytical derivative
+    alpha_theta = thetad_dot - cthe*ethata
     beta_theta = theta_dot - alpha_theta + lamthe*xtheta
-    theta_dot2 = -cq*beta_theta + thetad_dot2_new - cthe*etheta_dot - lamthe*ethata - ethata  # Use analytical second derivative
+    theta_dot2 = -cq*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
     dtheta_hat_dot = lamthe_star*beta_theta
     dtheta_hat += dtheta_hat_dot*dt
     U3 = (theta_dot2 - dtheta_hat - phi_dot*psi_dot*(Izz-Ixx)/Iyy)*Iyy/l
@@ -363,13 +337,11 @@ def adaptive_att_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     jifen_old = [xphi, xtheta, xpsi]
 
     # NED convention: negative thrust value creates upward force (opposes gravity)  
-    U1 = -UAV_mass*11.0  # Hover thrust (negative for upward force in NED)
+    U1 = -UAV_mass*9.81  # Hover thrust (negative for upward force in NED)
 
     return U1, -U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
 
-
-
-def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
+def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt):
     # lowpass filter
     alp = 0.1
     pos = [lowpass_filter(p, alp) for p in pos]
@@ -393,7 +365,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
 
     dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat = dhat
     xphi, xtheta, xpsi = jifen
-    g = -9.8
+    g = 9.8
 
     # calculate pos_dot & att_dot
     u = (pos[0][-1] - pos[0][-2])/dt    # x,y,z_dot
@@ -456,7 +428,6 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     # attitude control
     # print(f"{Ux*math.sin(psi) - Uy*math.cos(psi)}")
     phid_new = math.asin(Ux*math.sin(psi) - Uy*math.cos(psi))
-    print(phid_new)
     # print(f"{(Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new)}")
     thetad_new = math.asin((Ux*math.cos(psi) + Uy*math.sin(psi))/math.cos(phid_new))
 
@@ -475,7 +446,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     xphi += ephi
     alpha_phi = phid_dot - cphi*ephi
     beta_phi = phi_dot - alpha_phi + lamphi*xphi
-    phi_dot2 = -cp*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
+    phi_dot2 = -cr*beta_phi + phid_dot2 - cphi*ephi_dot - lamphi*ephi - ephi
     dphi_hat_dot = lamphi_star*beta_phi
     dphi_hat += dphi_hat_dot*dt
     U2 = (phi_dot2 - dphi_hat - theta_dot*psi_dot*(Iyy-Izz)/Ixx)*Ixx/l
@@ -485,7 +456,7 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     xtheta += ethata
     alpha_theta = thetad_dot - cthe*ethata
     beta_theta = theta_dot - alpha_theta + lamthe*xtheta
-    theta_dot2 = -cq*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
+    theta_dot2 = -cr*beta_theta + thetad_dot2 - cthe*etheta_dot - lamthe*ethata - ethata
     dtheta_hat_dot = lamthe_star*beta_theta
     dtheta_hat += dtheta_hat_dot*dt
     U3 = (theta_dot2 - dtheta_hat - phi_dot*psi_dot*(Izz-Ixx)/Iyy)*Iyy/l
@@ -493,34 +464,4 @@ def adaptive_controller(pos, att, posd, attd, dhat, jifen, dt, t):
     dhat_old = [dx_hat, dy_hat, dz_hat, dphi_hat, dtheta_hat, dpsi_hat]
     jifen_old = [xphi, xtheta, xpsi]
 
-    return U1, -U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old
-
-def smooth_reference_trajectory(t, target_value=0.2, transition_start=1.0, transition_duration=2.0):
-    """
-    Generate smooth reference trajectory with analytical derivatives.
-    
-    Args:
-        t: Current time
-        target_value: Final reference value
-        transition_start: Time when transition begins
-        transition_duration: Duration of transition
-    
-    Returns:
-        ref, ref_dot, ref_dot2: Reference value and its first/second derivatives
-    """
-    if t < transition_start:
-        return 0.0, 0.0, 0.0
-    elif t < transition_start + transition_duration:
-        # Use smooth sigmoid transition
-        tau = (t - transition_start) / transition_duration
-        # 5th order polynomial for smooth transition: 6*tau^5 - 15*tau^4 + 10*tau^3
-        s = 6*tau**5 - 15*tau**4 + 10*tau**3
-        s_dot = (30*tau**4 - 60*tau**3 + 30*tau**2) / transition_duration
-        s_dot2 = (120*tau**3 - 180*tau**2 + 60*tau) / (transition_duration**2)
-        
-        ref = target_value * s
-        ref_dot = target_value * s_dot
-        ref_dot2 = target_value * s_dot2
-        return ref, ref_dot, ref_dot2
-    else:
-        return target_value, 0.0, 0.0
+    return U1, U2, U3, U4, phid_new, thetad_new, dhat_old, jifen_old

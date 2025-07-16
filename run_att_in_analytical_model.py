@@ -199,8 +199,8 @@ def run_simulation():
     """Run the step-by-step simulation with adaptive controller."""
     
     # Simulation parameters
-    dt = 0.1  # Controller time step
-    total_time = 20.0  # Total simulation time
+    dt = 0.01  # Controller time step
+    total_time = 10.0  # Total simulation time
     num_steps = int(total_time / dt)
     
     # Initial state: [pos_w(3), vel_w(3), quat_wxyz(4), ang_vel_b(3)]
@@ -321,7 +321,7 @@ def run_simulation():
 
 if __name__ == "__main__":
     # First verify the control allocation
-    verify_control_mixing()
+    # verify_control_mixing()
     
     # Run the simulation
     time_data, pos_data, att_data, ctrl_data, pwm_data = run_simulation()
@@ -335,16 +335,16 @@ if __name__ == "__main__":
     pwm_data = np.array(pwm_data)
     print(pwm_data.shape)
 
-    plt.figure(figsize=(12, 8))
-    plt.plot(time_data, pwm_data[:, 0], 'r-', label='PWM FR')
-    plt.plot(time_data, pwm_data[:, 1], 'g-', label='PWM RL')
-    plt.plot(time_data, pwm_data[:, 2], 'b-', label='PWM FL')
-    plt.plot(time_data, pwm_data[:, 3], 'k-', label='PWM RR')
-    plt.xlabel('Time (s)')
-    plt.ylabel('PWM Signal')
-    plt.title('PWM Signals vs Time')
-    plt.legend()
-    plt.grid(True)
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(time_data, pwm_data[:, 0], 'r-', label='PWM FR')
+    # plt.plot(time_data, pwm_data[:, 1], 'g-', label='PWM RL')
+    # plt.plot(time_data, pwm_data[:, 2], 'b-', label='PWM FL')
+    # plt.plot(time_data, pwm_data[:, 3], 'k-', label='PWM RR')
+    # plt.xlabel('Time (s)')
+    # plt.ylabel('PWM Signal')
+    # plt.title('PWM Signals vs Time')
+    # plt.legend()
+    # plt.grid(True)
     
     # Plot position
     plt.figure(figsize=(12, 8))

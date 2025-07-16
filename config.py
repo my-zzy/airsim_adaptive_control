@@ -11,12 +11,12 @@ cy = 1
 cz = 0.1
 cu = 1
 cv = 1
-cw = 1
+cw = 5
 lamx = 2
 lamy = 2
 lamz = 0.8
 
-lamphi = 0.1
+lamphi = 0.01
 lamthe = 0.1
 lampsi = 0.01
 cphi = 5
@@ -25,7 +25,7 @@ cpsi = 5
 cp = 0.1
 cq = 0.1
 cr = 0.01
-lamphi_star = 0.1
+lamphi_star = 0.01
 lamthe_star = 0.1
 lampsi_star = 0.01
 

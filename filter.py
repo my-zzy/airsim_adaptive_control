@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def lowpass_filter(data, alpha):
     """指数加权移动平均滤波"""
@@ -25,9 +26,9 @@ def calculate_acceleration(velocities, dt):
 import matplotlib.pyplot as plt
 
 # 假设的原始位置数据
-positions = np.array([0,0,0,0,0 ,1, 2, 3, 4, 5, 6, 7, 8, 9,9,9,9,9,9,9,9,9,9])  # 包含跳变的数据
+positions = np.array([0,0,0,0,0 , 9,9,9,9,9,9,9,9,9,9])  # 包含跳变的数据
 dt = 0.001  # 时间间隔
-alpha = 0.5  # EWMA的平滑系数
+alpha = 0.1  # EWMA的平滑系数
 
 # 平滑位置数据
 smoothed_positions = lowpass_filter(positions, alpha)
